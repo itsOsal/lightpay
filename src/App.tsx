@@ -89,26 +89,51 @@ export default function App() {
 
     if (!isLocked) return;
 
+    // Aggressive history trap loop (seeds history buffer so back button doesn't leave)
+    try {
+      for (let i = 0; i < 30; i++) {
+        window.history.pushState({ locked: true, depth: i }, '', window.location.href);
+      }
+    } catch {
+      // ignore
+    }
+
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = 'Light is currently ON! Payment of ₹1 is required before you can turn off or leave.';
+      e.returnValue = '⚠️ SMART LIGHT LOCKED: ₹1 Payment is required to turn off the light or exit!';
       return e.returnValue;
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // Trap back button
-    window.history.pushState(null, '', window.location.href);
-    const handlePopState = () => {
-      window.history.pushState(null, '', window.location.href);
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      // Re-seed history immediately
+      window.history.pushState({ locked: true, t: Date.now() }, '', window.location.href);
       setIsPaymentModalOpen(true);
       sound.playLockedBuzz();
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200]);
+      }
     };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Intercept exit shortcuts if attempted
+      if (e.key === 'Escape' || (e.altKey && e.key === 'ArrowLeft') || e.key === 'Backspace') {
+        if (!unlockToken && lightState.status === 'ON') {
+          e.preventDefault();
+          setIsPaymentModalOpen(true);
+          sound.playLockedBuzz();
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, [lightState.status, lightState.offLockState, unlockToken]);
 
@@ -123,6 +148,22 @@ export default function App() {
     setLoadingAction('ON');
     setErrorMessage(null);
     try {
+      // Request Fullscreen on mobile to maximize brightness and kiosk lockdown
+      if (typeof document !== 'undefined' && document.documentElement) {
+        try {
+          if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Haptic vibration feedback
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([150, 50, 150]);
+      }
+
       // Trigger mobile screen torch & wake lock immediately
       const torchRes = await flashlight.turnOn();
       setTorchMode(torchRes.mode);
@@ -146,7 +187,7 @@ export default function App() {
       // Automatically open mandatory ₹1 payment modal after brief activation animation
       setTimeout(() => {
         handleOpenPayment();
-      }, 600);
+      }, 500);
 
       // Sync with server if backend is reachable
       try {
@@ -288,32 +329,46 @@ export default function App() {
   const isOffUnlocked = isLightOn && (lightState.offLockState === 'UNLOCKED' || !!unlockToken);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans flex flex-col justify-between selection:bg-blue-600 selection:text-white">
+    <div
+      className={`min-h-screen font-sans flex flex-col justify-between selection:bg-amber-500 selection:text-white transition-all duration-700 ${
+        isLightOn
+          ? 'bg-amber-100 text-slate-900 shadow-[inset_0_0_150px_rgba(251,191,36,0.5)]'
+          : 'bg-slate-950 text-slate-50'
+      }`}
+    >
       {/* Sleek Interface Header */}
-      <header className="flex items-center justify-between px-6 sm:px-8 py-5 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+      <header
+        className={`flex items-center justify-between px-6 sm:px-8 py-5 border-b sticky top-0 z-40 backdrop-blur-md transition-colors duration-500 ${
+          isLightOn
+            ? 'bg-white/90 border-amber-200 text-slate-900 shadow-sm'
+            : 'bg-slate-950/80 border-slate-800 text-slate-50'
+        }`}
+      >
         {/* Brand Icon & Title */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/30">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shadow-lg transition-colors ${
+            isLightOn ? 'bg-amber-500 shadow-amber-400/50' : 'bg-blue-600 shadow-blue-900/30'
+          }`}>
             <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
               <circle cx="12" cy="12" r="4" />
             </svg>
           </div>
-          <span className="text-xl font-bold tracking-tight text-white">Light</span>
+          <span className={`text-xl font-bold tracking-tight ${isLightOn ? 'text-slate-900' : 'text-white'}`}>Light</span>
         </div>
 
         {/* Center Nav Links from Sleek design */}
-        <div className="hidden md:flex gap-6 text-sm font-medium text-slate-400">
-          <span className="text-blue-400 cursor-pointer">Dashboard</span>
+        <div className={`hidden md:flex gap-6 text-sm font-medium ${isLightOn ? 'text-slate-600' : 'text-slate-400'}`}>
+          <span className={isLightOn ? 'text-amber-700 font-semibold cursor-pointer' : 'text-blue-400 cursor-pointer'}>Dashboard</span>
           <span
             onClick={() => setIsIotDrawerOpen(true)}
-            className="hover:text-slate-200 transition-colors cursor-pointer"
+            className={`${isLightOn ? 'hover:text-slate-900' : 'hover:text-slate-200'} transition-colors cursor-pointer`}
           >
             Devices &amp; IoT
           </span>
           <span
             onClick={() => setIsLogsModalOpen(true)}
-            className="hover:text-slate-200 transition-colors cursor-pointer"
+            className={`${isLightOn ? 'hover:text-slate-900' : 'hover:text-slate-200'} transition-colors cursor-pointer`}
           >
             History &amp; Logs
           </span>
@@ -322,14 +377,18 @@ export default function App() {
         {/* Right Metric and User Profile Pill */}
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="flex flex-col items-end">
-            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Turn OFF Tariff</span>
-            <span className="text-sm font-mono font-bold text-slate-200">₹1.00</span>
+            <span className={`text-[10px] uppercase tracking-widest font-bold ${isLightOn ? 'text-slate-500' : 'text-slate-500'}`}>Turn OFF Tariff</span>
+            <span className={`text-sm font-mono font-bold ${isLightOn ? 'text-amber-900' : 'text-slate-200'}`}>₹1.00</span>
           </div>
 
           {/* Sound Toggle */}
           <button
             onClick={toggleMute}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+            className={`p-2 rounded-xl border transition-colors ${
+              isLightOn
+                ? 'bg-white border-amber-200 text-slate-700 hover:text-slate-950 shadow-sm'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+            }`}
             title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -337,7 +396,11 @@ export default function App() {
 
           <div
             onClick={() => setIsLogsModalOpen(true)}
-            className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 cursor-pointer hover:border-slate-600 transition-colors"
+            className={`w-10 h-10 rounded-full border flex items-center justify-center text-xs font-bold cursor-pointer transition-colors ${
+              isLightOn
+                ? 'bg-amber-200 border-amber-300 text-amber-900 hover:bg-amber-300'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600'
+            }`}
             title="System User & Logs"
           >
             LP
@@ -348,7 +411,11 @@ export default function App() {
       {/* Main Dashboard Body */}
       <main className="flex-grow flex flex-col lg:flex-row p-4 sm:p-8 gap-6 sm:gap-8 max-w-7xl mx-auto w-full">
         {/* Central Device Control Panel */}
-        <div className="flex-grow flex flex-col items-center justify-center bg-slate-900/50 rounded-3xl border border-slate-800/50 shadow-2xl relative overflow-hidden p-6 sm:p-10">
+        <div className={`flex-grow flex flex-col items-center justify-center rounded-3xl border shadow-2xl relative overflow-hidden p-6 sm:p-10 transition-all duration-700 ${
+          isLightOn
+            ? 'bg-white/95 border-amber-200 shadow-[0_0_100px_rgba(251,191,36,0.6)]'
+            : 'bg-slate-900/50 border-slate-800/50 shadow-2xl'
+        }`}>
           {/* Error Banner */}
           <AnimatePresence>
             {errorMessage && (

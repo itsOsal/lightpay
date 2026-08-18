@@ -54,7 +54,7 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
         className="absolute inset-0 pointer-events-none transition-opacity duration-700"
         style={{
           background: isLightOn
-            ? 'radial-gradient(circle at 50% 40%, rgba(34, 197, 94, 0.18), transparent 70%)'
+            ? 'radial-gradient(circle at 50% 40%, rgba(251, 191, 36, 0.45) 0%, rgba(245, 158, 11, 0.25) 40%, transparent 80%)'
             : 'radial-gradient(circle at 50% 40%, rgba(51, 65, 85, 0.15), transparent 70%)',
         }}
       />
@@ -64,15 +64,15 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
         {/* Outer Halo */}
         <motion.div
           animate={{
-            scale: isLightOn ? [1, 1.02, 1] : 0.96,
+            scale: isLightOn ? [1, 1.05, 1] : 0.96,
             boxShadow: isLightOn
-              ? '0 0 80px rgba(34, 197, 94, 0.35)'
+              ? '0 0 100px rgba(251, 191, 36, 0.9), 0 0 40px rgba(255, 255, 255, 0.8)'
               : '0 0 0px rgba(0,0,0,0)',
           }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           className={`w-52 h-52 sm:w-60 sm:h-60 rounded-full flex items-center justify-center transition-all duration-700 border ${
             isLightOn
-              ? 'bg-green-500/20 border-green-500/30'
+              ? 'bg-amber-400/40 border-amber-300 shadow-2xl'
               : 'bg-slate-800/30 border-slate-800'
           }`}
         >
@@ -80,17 +80,17 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
           <div
             className={`w-36 h-36 sm:w-44 sm:h-44 rounded-full flex items-center justify-center transition-all duration-500 ${
               isLightOn
-                ? 'bg-green-500 shadow-[0_0_50px_rgba(34,197,94,0.6)] text-white'
+                ? 'bg-gradient-to-tr from-amber-300 via-amber-100 to-white shadow-[0_0_70px_rgba(255,255,255,1)] text-amber-900 border-4 border-white'
                 : 'bg-slate-800 shadow-inner text-slate-500 border border-slate-700/50'
             }`}
           >
             {isLightOn ? (
               <svg
-                className="w-16 h-16 sm:w-20 sm:h-20 text-white drop-shadow-lg"
+                className="w-16 h-16 sm:w-20 sm:h-20 text-amber-700 drop-shadow-lg animate-pulse"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >

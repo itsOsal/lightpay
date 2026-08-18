@@ -199,14 +199,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     <div
       id="payment-modal-backdrop"
       onClick={handleAttemptClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-amber-900/40 backdrop-blur-sm overflow-y-auto"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-slate-900 w-full max-w-[440px] rounded-[40px] border border-slate-800 shadow-2xl overflow-hidden p-6 sm:p-8 flex flex-col items-center text-center my-auto text-slate-50 relative"
+        className="bg-slate-900 w-full max-w-[440px] rounded-[40px] border-2 border-amber-400 shadow-[0_0_80px_rgba(251,191,36,0.6)] overflow-hidden p-6 sm:p-8 flex flex-col items-center text-center my-auto text-slate-50 relative"
       >
         {/* Sleek top pill handle */}
         <div className="w-16 h-1 bg-slate-800 rounded-full mb-6 shrink-0" />
