@@ -66,7 +66,7 @@ curl -X GET https://your-light-app.com/api/iot/relay
 # 2. Turn Light ON (Free)
 curl -X POST https://your-light-app.com/api/light/on
 
-# 3. Create ₹50 Turn-off Order
+# 3. Create ₹1 Turn-off Order
 curl -X POST https://your-light-app.com/api/payment/create
 
 # 4. Turn Light OFF (Requires verified token)

@@ -117,7 +117,7 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
         {isLightOn && (
           <div
             onClick={isLocked ? onPayClick : undefined}
-            title={isLocked ? 'Pay ₹50 to unlock OFF' : 'Payment verified'}
+            title={isLocked ? 'Pay ₹1 to unlock OFF' : 'Payment verified'}
             className={`absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-slate-950 border border-slate-800 p-2.5 rounded-2xl shadow-xl flex items-center gap-1.5 transition-transform ${
               isLocked ? 'cursor-pointer hover:scale-110 active:scale-95' : ''
             }`}

@@ -60,7 +60,7 @@ const logs: ActivityLog[] = [
     id: 'log-init',
     timestamp: Date.now(),
     type: 'LOCK_ENGAGED',
-    message: 'System initialized. Pay-to-turn-off security policy active (₹50 tariff).',
+    message: 'System initialized. Pay-to-turn-off security policy active (₹1 tariff).',
   },
 ];
 
@@ -117,7 +117,7 @@ async function startServer() {
     lightState.activeOrderId = null;
 
     addLog('LIGHT_ON', 'Smart Light turned ON (Free tier activation)');
-    addLog('LOCK_ENGAGED', 'OFF button locked. ₹50 payment required to unlock OFF control.');
+    addLog('LOCK_ENGAGED', 'OFF button locked. ₹1 payment required to unlock OFF control.');
 
     res.json({
       success: true,
@@ -140,7 +140,7 @@ async function startServer() {
       return res.status(403).json({
         success: false,
         error: 'OFF_BUTTON_LOCKED',
-        message: 'Security policy violation: You must pay ₹50 to unlock the OFF button.',
+        message: 'Security policy violation: You must pay ₹1 to unlock the OFF button.',
       });
     }
 
@@ -187,10 +187,10 @@ async function startServer() {
     });
   });
 
-  // POST Create Payment Order (₹50)
+  // POST Create Payment Order (₹1)
   app.post('/api/payment/create', (req, res) => {
     const orderId = `LP-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const amount = 50;
+    const amount = 1;
     const upiId = 'itskimsia-1@okicici';
     const payeeName = 'Osal';
     const note = `Light OFF Token ${orderId}`;
@@ -216,7 +216,7 @@ async function startServer() {
     orders.set(orderId, newOrder);
     lightState.activeOrderId = orderId;
 
-    addLog('PAYMENT_CREATED', `Order ${orderId} generated for ₹50. Awaiting UPI payment.`, `UPI ID: ${upiId}`);
+    addLog('PAYMENT_CREATED', `Order ${orderId} generated for ₹1. Awaiting UPI payment.`, `UPI ID: ${upiId}`);
 
     res.json({
       success: true,
@@ -284,7 +284,7 @@ async function startServer() {
 
     addLog(
       'PAYMENT_VERIFIED',
-      `Payment of ₹50 verified for order ${orderId}. OFF control unlocked!`,
+      `Payment of ₹1 verified for order ${orderId}. OFF control unlocked!`,
       `UTR: ${verifiedUtr}`
     );
 

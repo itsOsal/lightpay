@@ -46,7 +46,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const orderId = activeOrder?.orderId || 'LP-INIT';
   const upiId = activeOrder?.upiId || 'itskimsia-1@okicici';
   const payeeName = activeOrder?.payeeName || 'Osal';
-  const amount = activeOrder?.amount || 50;
+  const amount = activeOrder?.amount ?? 1;
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
     payeeName
   )}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Light OFF Token ${orderId}`)}`;
@@ -212,7 +212,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
-                  alt="UPI ₹50 QR Code"
+                  alt="UPI ₹1 QR Code"
                   className="w-full h-full object-contain rounded-2xl"
                 />
               ) : (
@@ -258,7 +258,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             <p className="text-sm text-slate-400 px-4 leading-relaxed mb-6">
-              Scan the QR code and pay ₹50 to unlock the OFF button.
+              Scan the QR code and pay ₹1 to unlock the OFF button.
             </p>
 
             {/* Status & Verification Box */}
