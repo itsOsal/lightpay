@@ -56,6 +56,18 @@ export default function App() {
   const [torchMode, setTorchMode] = useState<'HARDWARE' | 'SCREEN' | null>(null);
   const [torchNotice, setTorchNotice] = useState<string | null>(null);
   const [isFullScreenTorch, setIsFullScreenTorch] = useState(false);
+  const [isLockedShaking, setIsLockedShaking] = useState(false);
+
+  const triggerLockedShake = useCallback(() => {
+    setIsLockedShaking(true);
+    sound.playLockedBuzz();
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([100, 50, 100]);
+    }
+    setTimeout(() => {
+      setIsLockedShaking(false);
+    }, 500);
+  }, []);
 
   // Fetch status from server
   const fetchStatus = useCallback(async () => {
@@ -109,10 +121,7 @@ export default function App() {
       // Re-seed history immediately
       window.history.pushState({ locked: true, t: Date.now() }, '', window.location.href);
       setIsPaymentModalOpen(true);
-      sound.playLockedBuzz();
-      if (navigator.vibrate) {
-        navigator.vibrate([200, 100, 200]);
-      }
+      triggerLockedShake();
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -121,7 +130,7 @@ export default function App() {
         if (!unlockToken && lightState.status === 'ON') {
           e.preventDefault();
           setIsPaymentModalOpen(true);
-          sound.playLockedBuzz();
+          triggerLockedShake();
         }
       }
     };
@@ -264,7 +273,7 @@ export default function App() {
   // Turn Light OFF (Requires Token) & Deactivate Torch
   const handleTurnOff = async () => {
     if (lightState.offLockState === 'LOCKED' && !unlockToken) {
-      sound.playLockedBuzz();
+      triggerLockedShake();
       handleOpenPayment();
       return;
     }
@@ -410,12 +419,23 @@ export default function App() {
 
       {/* Main Dashboard Body */}
       <main className="flex-grow flex flex-col lg:flex-row p-4 sm:p-8 gap-6 sm:gap-8 max-w-7xl mx-auto w-full">
-        {/* Central Device Control Panel */}
-        <div className={`flex-grow flex flex-col items-center justify-center rounded-3xl border shadow-2xl relative overflow-hidden p-6 sm:p-10 transition-all duration-700 ${
-          isLightOn
-            ? 'bg-white/95 border-amber-200 shadow-[0_0_100px_rgba(251,191,36,0.6)]'
-            : 'bg-slate-900/50 border-slate-800/50 shadow-2xl'
-        }`}>
+        {/* Central Device Control Panel with Locked Shaking Animation */}
+        <motion.div
+          animate={
+            isLockedShaking
+              ? {
+                  x: [0, -10, 10, -8, 8, -4, 4, 0],
+                  rotate: [0, -1, 1, -0.5, 0.5, 0],
+                  transition: { duration: 0.45, ease: 'easeInOut' },
+                }
+              : {}
+          }
+          className={`flex-grow flex flex-col items-center justify-center rounded-3xl border shadow-2xl relative overflow-hidden p-6 sm:p-10 transition-all duration-700 ${
+            isLightOn
+              ? 'bg-white/95 border-amber-200 shadow-[0_0_100px_rgba(251,191,36,0.6)]'
+              : 'bg-slate-900/50 border-slate-800/50 shadow-2xl'
+          }`}
+        >
           {/* Error Banner */}
           <AnimatePresence>
             {errorMessage && (
@@ -447,15 +467,30 @@ export default function App() {
               >
                 <div className="flex items-center gap-2">
                   <Flashlight className="w-4 h-4 shrink-0 animate-pulse text-amber-400" />
-                  <span>Light active • Screen wake lock on</span>
+                  <span>
+                    {torchNotice || (torchMode === 'HARDWARE' ? 'Phone Flashlight LED ON' : 'Screen Torch & Wake Lock ON')}
+                  </span>
                 </div>
-                <button
-                  onClick={() => setIsFullScreenTorch(true)}
-                  className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-amber-500/30"
-                  title="Turn phone into 100% full-white flashlight torch"
-                >
-                  Full Screen Torch
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={async () => {
+                      const res = await flashlight.turnOn();
+                      setTorchMode(res.mode);
+                      setTorchNotice(res.message);
+                    }}
+                    className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-amber-500/30"
+                    title="Re-activate phone hardware LED torch"
+                  >
+                    Torch LED
+                  </button>
+                  <button
+                    onClick={() => setIsFullScreenTorch(true)}
+                    className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-amber-500/30"
+                    title="Turn phone into 100% full-white flashlight torch"
+                  >
+                    Max Screen
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -469,6 +504,8 @@ export default function App() {
             colorTemperature={lightState.colorTemperature}
             powerWatts={lightState.powerWatts}
             onPayClick={handleOpenPayment}
+            isLockedShaking={isLockedShaking}
+            onLockedAttempt={triggerLockedShake}
           />
 
           {/* Actions Container from Sleek Theme */}
@@ -530,7 +567,7 @@ export default function App() {
               </>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Sleek Sidebar (<aside>) from Sleek Interface design */}
         <aside className="w-full lg:w-80 space-y-6 shrink-0">
@@ -624,6 +661,8 @@ export default function App() {
         onClose={() => setIsPaymentModalOpen(false)}
         onPaymentSuccess={handlePaymentSuccess}
         activeOrder={activeOrder}
+        isLockedShaking={isLockedShaking}
+        onLockedAttempt={triggerLockedShake}
         onCreateNewOrder={async () => {
           try {
             const res = await fetch('/api/payment/create', { method: 'POST' });

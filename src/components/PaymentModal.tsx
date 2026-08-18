@@ -24,6 +24,8 @@ interface PaymentModalProps {
   onPaymentSuccess: (unlockToken: string) => void;
   activeOrder: PaymentOrder | null;
   onCreateNewOrder: () => Promise<PaymentOrder | null>;
+  isLockedShaking?: boolean;
+  onLockedAttempt?: () => void;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -32,6 +34,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onPaymentSuccess,
   activeOrder,
   onCreateNewOrder,
+  isLockedShaking,
+  onLockedAttempt,
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -41,6 +45,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [showUtrBox, setShowUtrBox] = useState(false);
   const [timeLeft, setTimeLeft] = useState(900);
+  const [localModalShake, setLocalModalShake] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const orderId = activeOrder?.orderId || 'LP-INIT';
@@ -188,12 +193,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     if (!verificationSuccess) {
       setVerificationError('🔒 Mandatory Payment: Pay ₹1 to unlock the OFF button.');
       sound.playLockedBuzz();
+      setLocalModalShake(true);
+      if (onLockedAttempt) onLockedAttempt();
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      setTimeout(() => setLocalModalShake(false), 500);
       return;
     }
     onClose();
   };
 
   if (!isOpen) return null;
+
+  const shouldShake = isLockedShaking || localModalShake;
 
   return (
     <div
@@ -203,7 +216,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+        animate={
+          shouldShake
+            ? {
+                x: [0, -10, 10, -8, 8, -4, 4, 0],
+                rotate: [0, -1, 1, -0.5, 0.5, 0],
+                scale: 1,
+                transition: { duration: 0.45, ease: 'easeInOut' },
+              }
+            : { opacity: 1, scale: 1 }
+        }
         exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
         className="bg-slate-900 w-full max-w-[440px] rounded-[40px] border-2 border-amber-400 shadow-[0_0_80px_rgba(251,191,36,0.6)] overflow-hidden p-6 sm:p-8 flex flex-col items-center text-center my-auto text-slate-50 relative"

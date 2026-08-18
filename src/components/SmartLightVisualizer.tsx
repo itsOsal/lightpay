@@ -11,6 +11,8 @@ interface SmartLightVisualizerProps {
   colorTemperature: string;
   powerWatts: number;
   onPayClick?: () => void;
+  isLockedShaking?: boolean;
+  onLockedAttempt?: () => void;
 }
 
 export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
@@ -20,6 +22,8 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
   brightness,
   powerWatts,
   onPayClick,
+  isLockedShaking,
+  onLockedAttempt,
 }) => {
   const isLightOn = status === 'ON';
   const isLocked = isLightOn && lockState === 'LOCKED';
@@ -47,6 +51,13 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleOrbClick = () => {
+    if (isLocked) {
+      if (onLockedAttempt) onLockedAttempt();
+      if (onPayClick) onPayClick();
+    }
+  };
+
   return (
     <div className="relative flex flex-col items-center justify-center p-4 sm:p-6 w-full">
       {/* Background Volumetric Ambient Radial Glow from Sleek theme */}
@@ -60,7 +71,19 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
       />
 
       {/* Main Fixture / Glowing Orb Stack */}
-      <div className="relative z-10 mb-6 sm:mb-8">
+      <motion.div
+        animate={
+          isLockedShaking
+            ? {
+                x: [0, -10, 10, -8, 8, -4, 4, 0],
+                rotate: [0, -1.5, 1.5, -1, 1, 0],
+                transition: { duration: 0.45, ease: 'easeInOut' },
+              }
+            : {}
+        }
+        className="relative z-10 mb-6 sm:mb-8 cursor-pointer"
+        onClick={handleOrbClick}
+      >
         {/* Outer Halo */}
         <motion.div
           animate={{
@@ -135,7 +158,7 @@ export const SmartLightVisualizer: React.FC<SmartLightVisualizerProps> = ({
             )}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Main Status Text Hierarchy */}
       <div className="text-center space-y-1.5">
