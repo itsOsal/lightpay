@@ -83,37 +83,89 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
+  // Browser Exit Prevention (beforeunload & popstate trap while unpaid)
+  useEffect(() => {
+    const isLocked = lightState.status === 'ON' && (lightState.offLockState === 'LOCKED' || !unlockToken);
+
+    if (!isLocked) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'Light is currently ON! Payment of ₹1 is required before you can turn off or leave.';
+      return e.returnValue;
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Trap back button
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      window.history.pushState(null, '', window.location.href);
+      setIsPaymentModalOpen(true);
+      sound.playLockedBuzz();
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [lightState.status, lightState.offLockState, unlockToken]);
+
   const toggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
     sound.setMuted(next);
   };
 
-  // Turn Light ON (Free) & Activate Device Torch
+  // Turn Light ON (Free) & Activate Device Torch & Auto-Open Payment Lock
   const handleTurnOn = async () => {
     setLoadingAction('ON');
     setErrorMessage(null);
     try {
-      // Trigger physical flashlight / torch directly on user click gesture
+      // Trigger mobile screen torch & wake lock immediately
       const torchRes = await flashlight.turnOn();
       setTorchMode(torchRes.mode);
       setTorchNotice(torchRes.message);
 
-      const res = await fetch('/api/light/on', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setLightState(data.state);
-        setUnlockToken(null);
-        setActiveOrder(null);
-        sound.playSwitchOn();
-      } else {
-        setErrorMessage(data.message || 'Failed to turn light ON.');
+      // Optimistic local state update
+      const nextOnState: LightState = {
+        ...lightState,
+        status: 'ON',
+        offLockState: 'LOCKED',
+        turnedOnAt: Date.now(),
+        brightness: 100,
+        powerWatts: 12,
+        unlockToken: null,
+      };
+      setLightState(nextOnState);
+      setUnlockToken(null);
+      setActiveOrder(null);
+      sound.playSwitchOn();
+
+      // Automatically open mandatory ₹1 payment modal after brief activation animation
+      setTimeout(() => {
+        handleOpenPayment();
+      }, 600);
+
+      // Sync with server if backend is reachable
+      try {
+        const res = await fetch('/api/light/on', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.state) {
+            setLightState(data.state);
+          }
+        }
+      } catch {
+        // Backend not reachable (e.g. static hosting) — local state already active
       }
     } catch {
-      setErrorMessage('Network error turning on light.');
+      // Fallback
+      sound.playSwitchOn();
     } finally {
       setLoadingAction(null);
     }
@@ -124,19 +176,45 @@ export default function App() {
     setLoadingAction('PAYMENT');
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/payment/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await res.json();
-      if (res.ok && data.success && data.order) {
-        setActiveOrder(data.order);
-        setIsPaymentModalOpen(true);
-      } else {
-        setErrorMessage('Failed to initialize payment gateway.');
+      let createdOrder: PaymentOrder | null = null;
+
+      try {
+        const res = await fetch('/api/payment/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.order) {
+            createdOrder = data.order;
+          }
+        }
+      } catch {
+        // Server offline / static host
       }
+
+      // If server unreachable, create robust client-side order
+      if (!createdOrder) {
+        createdOrder = {
+          orderId: `ORD_${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+          amount: 1,
+          currency: 'INR',
+          upiId: 'itskimsia-1@okicici',
+          payeeName: 'Smart Light Pay',
+          status: 'PENDING',
+          createdAt: Date.now(),
+          verifiedAt: null,
+          utr: null,
+          unlockToken: null,
+          expiresAt: Date.now() + 15 * 60 * 1000,
+          notes: 'Unlock Turn-Off Control',
+        };
+      }
+
+      setActiveOrder(createdOrder);
+      setIsPaymentModalOpen(true);
     } catch {
-      setErrorMessage('Error connecting to payment service.');
+      setErrorMessage('Unable to initialize payment.');
     } finally {
       setLoadingAction(null);
     }
@@ -153,37 +231,44 @@ export default function App() {
     setLoadingAction('OFF');
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/light/off', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-unlock-token': unlockToken || lightState.unlockToken || '',
-        },
-        body: JSON.stringify({
-          unlockToken: unlockToken || lightState.unlockToken,
-        }),
-      });
+      // Stop torch immediately
+      await flashlight.turnOff();
+      setTorchMode(null);
+      setTorchNotice(null);
+      setIsFullScreenTorch(false);
 
-      const data = await res.json();
-      if (res.ok && data.success) {
-        // Stop hardware torch immediately
-        await flashlight.turnOff();
-        setTorchMode(null);
-        setTorchNotice(null);
+      const nextOffState: LightState = {
+        ...lightState,
+        status: 'OFF',
+        offLockState: 'LOCKED',
+        turnedOnAt: null,
+        brightness: 0,
+        powerWatts: 0,
+        unlockToken: null,
+      };
 
-        setLightState(data.state);
-        setUnlockToken(null);
-        setActiveOrder(null);
-        sound.playSwitchOff();
-      } else {
-        setErrorMessage(
-          data.message || 'Turn OFF blocked: Server-side payment verification required.'
-        );
-        sound.playLockedBuzz();
-        fetchStatus();
+      setLightState(nextOffState);
+      setUnlockToken(null);
+      setActiveOrder(null);
+      sound.playSwitchOff();
+
+      // Sync with server if online
+      try {
+        await fetch('/api/light/off', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-unlock-token': unlockToken || lightState.unlockToken || '',
+          },
+          body: JSON.stringify({
+            unlockToken: unlockToken || lightState.unlockToken,
+          }),
+        });
+      } catch {
+        // Server offline / static host
       }
     } catch {
-      setErrorMessage('Network error turning off light.');
+      setErrorMessage('Error turning off light.');
     } finally {
       setLoadingAction(null);
     }
@@ -291,35 +376,19 @@ export default function App() {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className={`mb-4 w-full max-w-md p-3 rounded-2xl flex items-center justify-between text-xs border ${
-                  torchMode === 'HARDWARE'
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                    : 'bg-blue-500/10 border-blue-500/30 text-blue-300'
-                }`}
+                className="mb-4 w-full max-w-md p-3 rounded-2xl flex items-center justify-between text-xs border bg-amber-500/10 border-amber-500/30 text-amber-300"
               >
                 <div className="flex items-center gap-2">
-                  <Flashlight className={`w-4 h-4 shrink-0 ${torchMode === 'HARDWARE' ? 'animate-pulse text-amber-400' : 'text-blue-400'}`} />
-                  <span>{torchNotice || 'Mobile flashlight active'}</span>
+                  <Flashlight className="w-4 h-4 shrink-0 animate-pulse text-amber-400" />
+                  <span>Light active • Screen wake lock on</span>
                 </div>
-                <div className="flex items-center gap-1.5 ml-2 shrink-0">
-                  <button
-                    onClick={() => setIsFullScreenTorch(true)}
-                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
-                    title="Turn mobile screen into 100% full-white flashlight torch"
-                  >
-                    Screen Torch
-                  </button>
-                  <button
-                    onClick={async () => {
-                      const res = await flashlight.turnOn();
-                      setTorchMode(res.mode);
-                      setTorchNotice(res.message);
-                    }}
-                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
-                  >
-                    Retrigger LED
-                  </button>
-                </div>
+                <button
+                  onClick={() => setIsFullScreenTorch(true)}
+                  className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-amber-500/30"
+                  title="Turn phone into 100% full-white flashlight torch"
+                >
+                  Full Screen Torch
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
