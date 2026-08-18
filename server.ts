@@ -193,7 +193,7 @@ async function startServer() {
     const amount = 50;
     const upiId = 'itskimsia-1@okicici';
     const payeeName = 'Osal';
-    const note = `LightPay OFF Token ${orderId}`;
+    const note = `Light OFF Token ${orderId}`;
     
     // Construct standard UPI intent URI
     const upiPayload = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
@@ -359,7 +359,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`💡 LightPay server running on http://localhost:${PORT}`);
+    console.log(`💡 Light server running on http://localhost:${PORT}`);
   });
 }
 

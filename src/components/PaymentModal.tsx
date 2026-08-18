@@ -49,7 +49,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const amount = activeOrder?.amount || 50;
   const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
     payeeName
-  )}&am=${amount}&cu=INR&tn=${encodeURIComponent(`LightPay OFF Token ${orderId}`)}`;
+  )}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Light OFF Token ${orderId}`)}`;
 
   useEffect(() => {
     if (!isOpen) return;

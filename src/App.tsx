@@ -195,7 +195,7 @@ export default function App() {
               <circle cx="12" cy="12" r="4" />
             </svg>
           </div>
-          <span className="text-xl font-bold tracking-tight text-white">LightPay</span>
+          <span className="text-xl font-bold tracking-tight text-white">Light</span>
         </div>
 
         {/* Center Nav Links from Sleek design */}

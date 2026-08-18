@@ -16,14 +16,14 @@ export const IotHardwareDrawer: React.FC<IotHardwareDrawerProps> = ({
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'ESP32' | 'CURL' | 'HOME_ASSISTANT'>('ESP32');
 
-  const esp32Code = `// ESP32 / ESP8266 Arduino Sketch for LightPay IoT Smart Relay
+  const esp32Code = `// ESP32 / ESP8266 Arduino Sketch for Light IoT Smart Relay
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
-const char* serverUrl = "https://your-lightpay-app.com/api/iot/relay";
+const char* serverUrl = "https://your-light-app.com/api/iot/relay";
 
 const int RELAY_PIN = 18; // GPIO Pin connected to AC/DC Relay
 
@@ -61,24 +61,24 @@ void loop() {
 }`;
 
   const curlCode = `# 1. Check Light Status (IoT Device Polling)
-curl -X GET https://your-lightpay-app.com/api/iot/relay
+curl -X GET https://your-light-app.com/api/iot/relay
 
 # 2. Turn Light ON (Free)
-curl -X POST https://your-lightpay-app.com/api/light/on
+curl -X POST https://your-light-app.com/api/light/on
 
 # 3. Create ₹50 Turn-off Order
-curl -X POST https://your-lightpay-app.com/api/payment/create
+curl -X POST https://your-light-app.com/api/payment/create
 
 # 4. Turn Light OFF (Requires verified token)
-curl -X POST https://your-lightpay-app.com/api/light/off \\
+curl -X POST https://your-light-app.com/api/light/off \\
   -H "Content-Type: application/json" \\
   -H "x-unlock-token: LP_SEC_YOUR_VERIFIED_TOKEN"`;
 
   const haYaml = `# Home Assistant configuration.yaml
 switch:
   - platform: rest
-    name: "LightPay Smart Lamp"
-    resource: "https://your-lightpay-app.com/api/iot/relay"
+    name: "Light Smart Lamp"
+    resource: "https://your-light-app.com/api/iot/relay"
     is_on_template: "{{ value_json.relay == 1 }}"
     headers:
       Content-Type: application/json`;

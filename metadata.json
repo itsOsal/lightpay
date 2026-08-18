@@ -1,5 +1,5 @@
 {
-  "name": "LightPay",
+  "name": "Light",
   "description": "Pay-to-control smart light system with backend payment verification, UPI QR integration, and simulated IoT device controls.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
